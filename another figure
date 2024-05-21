@@ -1,0 +1,173 @@
+1번 Dev-CPP 사각형 큐브 대신 다른 도형 넣기
+
+-소스코드-
+#include <windows.h>
+#include <gl/gl.h>
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+void EnableOpenGL(HWND hWnd, HDC *hDC, HGLRC *hRC);
+void DisableOpenGL(HWND hWnd, HDC hDC, HGLRC hRC);
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int iCmdShow)
+{
+    WNDCLASS wc;
+    HWND hWnd;
+    HDC hDC;
+    HGLRC hRC;        
+    MSG msg;
+    BOOL bQuit = FALSE;
+    float theta = 0.0f;
+
+    /* register window class */
+    wc.style = CS_OWNDC;
+    wc.lpfnWndProc = WndProc;
+    wc.cbClsExtra = 0;
+    wc.cbWndExtra = 0;
+    wc.hInstance = hInstance;
+    wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+    wc.lpszMenuName = NULL;
+    wc.lpszClassName = "GLSample";
+    RegisterClass(&wc);
+
+    /* create main window */
+    hWnd = CreateWindow(
+        "GLSample", "OpenGL Sample",
+        WS_CAPTION | WS_POPUPWINDOW | WS_VISIBLE,
+        0, 0, 512, 512,
+        NULL, NULL, hInstance, NULL);
+
+    /* enable OpenGL for the window */
+    EnableOpenGL(hWnd, &hDC, &hRC);
+
+    /* program main loop */
+    while (!bQuit)
+    {
+        /* check for messages */
+        if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+        {
+            /* handle or dispatch messages */
+            if (msg.message == WM_QUIT)
+            {
+                bQuit = TRUE;
+            }
+            else
+            {
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
+        }
+        else
+        {
+            /* OpenGL animation code goes here */
+            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            glPushMatrix();
+            glRotatef(theta, 0.0f, 0.0f, 1.0f);
+
+            // Rainbow colors array
+            GLfloat colors[5][3] = {
+                {1.0f, 0.0f, 0.0f}, // Red
+                {1.0f, 0.5f, 0.0f}, // Orange
+                {1.0f, 1.0f, 0.0f}, // Yellow
+                {0.0f, 1.0f, 0.0f}, // Green
+                {0.0f, 0.0f, 1.0f}  // Blue
+            };
+
+            // Pentagon vertices
+            GLfloat vertices[5][2] = {
+                {0.0f, 0.5f},       // Top
+                {0.4755f, 0.1545f}, // Upper right
+                {0.2939f, -0.4045f},// Lower right
+                {-0.2939f, -0.4045f},// Lower left
+                {-0.4755f, 0.1545f} // Upper left
+            };
+
+            // Draw the pentagon
+            glBegin(GL_POLYGON);
+            for (int i = 0; i < 5; ++i) {
+                glColor3fv(colors[i]);
+                glVertex2fv(vertices[i]);
+            }
+            glEnd();
+
+            // Outline
+            glColor3f(1.0f, 1.0f, 1.0f); // White
+            glBegin(GL_LINE_LOOP);
+            for (int i = 0; i < 5; ++i) {
+                glVertex2fv(vertices[i]);
+            }
+            glEnd();
+
+            glPopMatrix();
+
+            SwapBuffers(hDC);
+
+            theta += 1.0f; // Rotate counter-clockwise
+            Sleep(16); // Set timer for approximately 60fps
+        }
+    }
+
+    /* Shutdown OpenGL */
+    DisableOpenGL(hWnd, hDC, hRC);
+
+    /* Destroy the window */
+    DestroyWindow(hWnd);
+
+    return msg.wParam;
+}
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message)
+    {
+    case WM_CREATE:
+        return 0;
+    case WM_CLOSE:
+        PostQuitMessage(0);
+        return 0;
+    case WM_DESTROY:
+        return 0;
+    case WM_KEYDOWN:
+        switch (wParam)
+        {
+        case VK_ESCAPE:
+            PostQuitMessage(0);
+            return 0;
+        }
+        return 0;
+    default:
+        return DefWindowProc(hWnd, message, wParam, lParam);
+    }
+}
+
+void EnableOpenGL(HWND hWnd, HDC *hDC, HGLRC *hRC)
+{
+    PIXELFORMATDESCRIPTOR pfd;
+    int iFormat;
+
+    *hDC = GetDC(hWnd);
+
+    ZeroMemory(&pfd, sizeof(pfd));
+    pfd.nSize = sizeof(pfd);
+    pfd.nVersion = 1;
+    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+    pfd.iPixelType = PFD_TYPE_RGBA;
+    pfd.cColorBits = 24;
+    pfd.cDepthBits = 16;
+    pfd.iLayerType = PFD_MAIN_PLANE;
+    iFormat = ChoosePixelFormat(*hDC, &pfd);
+    SetPixelFormat(*hDC, iFormat, &pfd);
+
+    *hRC = wglCreateContext(*hDC);
+    wglMakeCurrent(*hDC, *hRC);
+}
+
+void DisableOpenGL(HWND hWnd, HDC hDC, HGLRC hRC)
+{
+    wglMakeCurrent(NULL, NULL);
+    wglDeleteContext(hRC);
+    ReleaseDC(hWnd, hDC);
+}
